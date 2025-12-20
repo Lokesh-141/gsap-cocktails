@@ -4,14 +4,14 @@ import { useGSAP } from '@gsap/react';
 
 const Navbar = () => {
     useGSAP(() => {
-        const navTeen = gsap.timeline({
+        const navTween = gsap.timeline({
             scrollTrigger: {
                 trigger: 'nav',
                 start: 'bottom top'
             }
         });
 
-        navTeen.fromTo('nav', { backgroundColor: 'transparent' }, {
+        navTween.fromTo('nav', { backgroundColor: 'transparent' }, {
             backgroundColor: '#00000050',
             backgroundFilter: 'blur(10px)',
             duration: 1,
