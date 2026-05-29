@@ -1,16 +1,54 @@
-# React + Vite
+sequenceDiagram
+    actor Admin
+    participant DevConsole as Provider Dev Console
+    participant NangoDash as Nango Dashboard (3003)
+    participant NangoAPI as Nango API (3003)
+    participant DB as Nango DB
+    participant MCPServer as MCP Server (8000)
+    participant User as Client User
+    participant ProviderOAuth as Provider OAuth Page
 
-This template provides a minimal setup to get React working in Vite with HMR and some ESLint rules.
+    rect rgb(200, 220, 240)
+        Note over Admin,MCPServer: ADMIN SETUP (once per provider)
+        Admin->>DevConsole: Create OAuth app
+        DevConsole-->>Admin: Client ID + Secret
+        Admin->>NangoDash: Add Integration (client ID, secret, scopes)
+        Admin->>MCPServer: Edit providers.json, restart
+    end
 
-Currently, two official plugins are available:
+    rect rgb(220, 240, 200)
+        Note over Admin,ProviderOAuth: ONBOARD USER (same flow for admin test or client)
 
-- [@vitejs/plugin-react](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react) uses [Babel](https://babeljs.io/) (or [oxc](https://oxc.rs) when used in [rolldown-vite](https://vite.dev/guide/rolldown)) for Fast Refresh
-- [@vitejs/plugin-react-swc](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react-swc) uses [SWC](https://swc.rs/) for Fast Refresh
+        alt Method A: get_auth_link tool
+            Admin->>MCPServer: Call get_auth_link(provider, user_email)
+            MCPServer->>NangoAPI: POST /connect/sessions
+            NangoAPI->>DB: Store connect session
+            NangoAPI-->>MCPServer: session token + connect link
+            MCPServer-->>Admin: auth_url
+        else Method B: Direct OAuth URL
+            Admin->>NangoAPI: POST /connect/sessions
+            NangoAPI->>DB: Store connect session
+            NangoAPI-->>Admin: session token
+            Admin->>DB: INSERT into _nango_oauth_sessions (UUID, provider, user)
+            Admin-->>Admin: Build Google OAuth URL with UUID as state
+        end
 
-## React Compiler
+        Admin->>User: Send auth URL
+        User->>ProviderOAuth: Visit URL → Authorize
+        ProviderOAuth->>NangoAPI: Redirect to /oauth/callback?code=...&state=UUID
+        NangoAPI->>NangoAPI: Exchange code for tokens
+        NangoAPI->>DB: Store token (user_id + provider → access_token)
+        NangoAPI-->>User: Success (redirect)
+    end
 
-The React Compiler is not enabled on this template because of its impact on dev & build performances. To add it, see [this documentation](https://react.dev/learn/react-compiler/installation).
-
-## Expanding the ESLint configuration
-
-If you are developing a production application, we recommend using TypeScript with type-aware lint rules enabled. Check out the [TS template](https://github.com/vitejs/vite/tree/main/packages/create-vite/template-react-ts) for information on how to integrate TypeScript and [`typescript-eslint`](https://typescript-eslint.io) in your project.
+    rect rgb(240, 220, 200)
+        Note over User,MCPServer: USING TOOLS
+        User->>MCPServer: Call tool (name, arguments: {user_id: "EMAIL", ...})
+        MCPServer->>NangoAPI: GET /connection?endUserId=EMAIL&integrationId=provider
+        NangoAPI->>DB: Lookup token
+        DB-->>NangoAPI: access_token
+        NangoAPI-->>MCPServer: credentials
+        MCPServer->>ProviderOAuth: Call real API with token
+        ProviderOAuth-->>MCPServer: API response
+        MCPServer-->>User: Result
+    end
