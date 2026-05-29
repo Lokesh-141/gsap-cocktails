@@ -1,3 +1,4 @@
+```mermaid
 sequenceDiagram
     actor Admin
     participant DevConsole as Provider Dev Console
@@ -52,3 +53,4 @@ sequenceDiagram
         ProviderOAuth-->>MCPServer: API response
         MCPServer-->>User: Result
     end
+```
